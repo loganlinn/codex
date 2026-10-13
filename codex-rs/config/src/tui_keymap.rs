@@ -485,6 +485,8 @@ pub struct TuiListKeymap {
 #[serde(deny_unknown_fields)]
 #[schemars(deny_unknown_fields)]
 pub struct TuiAgentsKeymap {
+    /// Open the custom command menu for the selected task.
+    pub commands: Option<KeybindingsSpec>,
     /// Open the session resume picker.
     pub resume: Option<KeybindingsSpec>,
     /// Search the available agent tasks.

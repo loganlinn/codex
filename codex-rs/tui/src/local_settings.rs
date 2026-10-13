@@ -82,6 +82,7 @@ impl LocalSettings {
                 pet_anchor: config.tui_pet_anchor,
                 session_picker_view: Some(config.tui_session_picker_view),
                 agents_overview_grouping: config.tui_agents_overview_grouping,
+                agent_commands: config.tui_agent_commands.clone(),
                 resume_cwd: config.tui_resume_cwd,
                 keymap: config.tui_keymap.clone(),
                 model_availability_nux: config.model_availability_nux.clone(),

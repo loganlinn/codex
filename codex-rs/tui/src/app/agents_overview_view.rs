@@ -157,6 +157,7 @@ pub(super) struct AgentsOverviewViewState {
     show_more_selected: bool,
     pub(super) connection_notice: Option<&'static str>,
     pub(super) server_version_notice: Option<String>,
+    pub(super) command_notice: Option<String>,
     search: String,
     searching: bool,
     pub(super) grouping: AgentsOverviewGrouping,
@@ -644,6 +645,13 @@ impl BottomPaneView for AgentsOverviewView {
                     state.search.clear();
                 }
             }
+            return;
+        }
+
+        if self.agents_keymap.commands.is_pressed(key) && !self.state().editing_metadata() {
+            self.app_event_tx.send(AppEvent::OpenAgentCommands {
+                thread: self.selected_row().map(|row| Box::new(row.thread.clone())),
+            });
             return;
         }
 

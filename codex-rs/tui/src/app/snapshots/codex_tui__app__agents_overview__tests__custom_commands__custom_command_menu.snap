@@ -1,0 +1,13 @@
+---
+source: tui/src/app/agent_commands_tests.rs
+expression: screen
+---
+  Custom commands
+  Run locally for Selected task
+
+
+
+› inspect
+  open_editor  Open this checkout in the editor
+
+  enter select · esc back

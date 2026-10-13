@@ -220,6 +220,16 @@ impl Renderable for AgentsOverviewView {
             .or_else(|| {
                 (state.refresh_failed && !state.loading).then(|| "Error loading tasks".to_owned())
             })
+            .or_else(|| {
+                state.command_notice.clone().map(|notice| {
+                    let key = self
+                        .agents_keymap
+                        .primary_hint("commands", &self.agents_keymap.commands)
+                        .map(ShortcutHint::display_label)
+                        .unwrap_or_default();
+                    format!("{notice}  {key} commands")
+                })
+            })
             .or_else(|| state.server_version_notice.clone());
         if let Some(notice) = notice.filter(|_| !state.help && state.key_chord_hint.is_none()) {
             line(notice.dim(), inset(layout.footer), buf);

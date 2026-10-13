@@ -25,12 +25,12 @@ expression: "screen(&view, width, height)"
   a          Archive
   h          Hide
   backspace  Delete
+  c          Commands
 
   View
   tab/⇧tab  Filter
   f3        Search
   g         Group
-
 
 
   esc back

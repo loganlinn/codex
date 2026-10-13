@@ -430,6 +430,7 @@ impl ListKeymap {
 /// Task-management shortcuts specific to the shared agents dashboard.
 #[derive(Clone, Debug)]
 pub(crate) struct AgentsKeymap {
+    pub(crate) commands: Vec<KeyBinding>,
     pub(crate) resume: Vec<KeyBinding>,
     pub(crate) search: Vec<KeyBinding>,
     pub(crate) new_task: Vec<KeyBinding>,
@@ -1360,6 +1361,7 @@ impl RuntimeKeymap {
         };
 
         let mut agents = AgentsKeymap {
+            commands: resolve_local!(keymap, defaults, agents, commands),
             resume: resolve_local!(keymap, defaults, agents, resume),
             search: resolve_local!(keymap, defaults, agents, search),
             new_task: resolve_local!(keymap, defaults, agents, new_task),
@@ -1377,6 +1379,7 @@ impl RuntimeKeymap {
 
         // New defaults yield to explicit bindings, including existing list shortcuts.
         for (configured, bindings) in [
+            (keymap.agents.commands.as_ref(), &mut agents.commands),
             (keymap.agents.resume.as_ref(), &mut agents.resume),
             (keymap.agents.search.as_ref(), &mut agents.search),
             (keymap.agents.new_task.as_ref(), &mut agents.new_task),
@@ -1545,6 +1548,7 @@ impl RuntimeKeymap {
 
         for (configured, bindings) in [
             (keymap.agents.resume.as_ref(), &mut agents.resume),
+            (keymap.agents.commands.as_ref(), &mut agents.commands),
             (keymap.agents.search.as_ref(), &mut agents.search),
             (keymap.agents.new_task.as_ref(), &mut agents.new_task),
             (
@@ -1922,6 +1926,7 @@ impl RuntimeKeymap {
                 chord_hints: Arc::default(),
             },
             agents: AgentsKeymap {
+                commands: default_bindings![plain(KeyCode::Char('c'))],
                 resume: default_bindings![plain(KeyCode::Char('o'))],
                 search: default_bindings![plain(KeyCode::F(3)), plain(KeyCode::Char('/'))],
                 new_task: default_bindings![plain(KeyCode::Char('n'))],
@@ -3619,6 +3624,34 @@ mod tests {
         keymap.global.toggle_fast_mode = Some(one("ctrl-l"));
 
         expect_conflict(&keymap, "clear_terminal", "toggle_fast_mode");
+    }
+
+    #[test]
+    fn agent_commands_can_be_remapped_unbound_and_yield_to_explicit_bindings() {
+        let mut keymap = TuiKeymap::default();
+        keymap.agents.commands = Some(one("f11"));
+        let runtime = RuntimeKeymap::from_config(&keymap).unwrap();
+        assert_eq!(
+            runtime.agents.commands,
+            vec![key_hint::plain(KeyCode::F(11))]
+        );
+        keymap.agents.commands = Some(KeybindingsSpec::Many(Vec::new()));
+        assert!(
+            RuntimeKeymap::from_config(&keymap)
+                .unwrap()
+                .agents
+                .commands
+                .is_empty()
+        );
+        keymap.agents.commands = None;
+        keymap.agents.rename = Some(one("c"));
+        assert!(
+            RuntimeKeymap::from_config(&keymap)
+                .unwrap()
+                .agents
+                .commands
+                .is_empty()
+        );
     }
 
     #[test]

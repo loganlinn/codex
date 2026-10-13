@@ -872,6 +872,9 @@ pub struct Config {
     /// Last selected grouping in Agent Command Center.
     pub tui_agents_overview_grouping: codex_config::types::AgentsOverviewGrouping,
 
+    /// Named local commands available from Agent Command Center.
+    pub tui_agent_commands: BTreeMap<String, codex_config::types::AgentCommand>,
+
     /// Working directory to use when resuming or forking a session.
     /// When unset, prompt if the current and session directories differ.
     pub tui_resume_cwd: Option<ResumeCwdMode>,
@@ -4674,6 +4677,7 @@ impl Config {
                 .and_then(|t| t.session_picker_view)
                 .unwrap_or_default(),
             tui_agents_overview_grouping: cfg.tui.as_ref().map(|t| t.agents_overview_grouping).unwrap_or_default(),
+            tui_agent_commands: cfg.tui.as_ref().map(|t| t.agent_commands.clone()).unwrap_or_default(),
             tui_resume_cwd: cfg.tui.as_ref().and_then(|t| t.resume_cwd),
             terminal_resize_reflow,
             tui_keymap: cfg

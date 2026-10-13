@@ -16,7 +16,7 @@ expression: "screen(&view, 100, 24)"
                       h          Hide
                       backspace  Delete
                       z p        Pin/unpin
-
+                      c          Commands
 
 
 

@@ -196,6 +196,7 @@ use tokio_util::sync::CancellationToken;
 use toml::Value as TomlValue;
 use uuid::Uuid;
 mod account_status;
+mod agent_commands;
 mod agent_message_consolidation;
 mod agent_navigation;
 mod agent_picker;

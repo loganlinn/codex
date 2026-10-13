@@ -37,6 +37,7 @@ pub(crate) const AGENTS_OVERVIEW_VIEW_ID: &str = "agents-overview";
 
 #[derive(Default)]
 pub(super) struct AgentsOverviewState {
+    pub(super) commands: super::agent_commands::AgentCommandState,
     /// Missing metadata records a local resume until the next metadata refresh.
     pub(super) threads: HashMap<ThreadId, Option<Thread>>,
     /// Lifecycle removals take precedence over delayed tool registration responses.

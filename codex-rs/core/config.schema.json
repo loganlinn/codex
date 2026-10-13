@@ -6,6 +6,44 @@
       "description": "A path that is guaranteed to be absolute and normalized (though it is not guaranteed to be canonicalized or exist on the filesystem).\n\nIMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set using [AbsolutePathBufGuard::new]. If no base path is set, the deserialization will fail unless the path being deserialized is already absolute.",
       "type": "string"
     },
+    "AgentCommand": {
+      "additionalProperties": false,
+      "description": "A local command offered for the selected task in Agent Command Center.",
+      "properties": {
+        "args": {
+          "default": [],
+          "description": "Separate arguments, each supporting `{{variable}}` templates.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cwd": {
+          "description": "Working directory template. Defaults to the selected task's directory.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Optional description shown in the command menu.",
+          "type": "string"
+        },
+        "environment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Environment overrides. Values support `{{variable}}` templates.",
+          "type": "object"
+        },
+        "interpreter": {
+          "description": "Executable to invoke directly. Supports `{{variable}}` templates.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "interpreter"
+      ],
+      "type": "object"
+    },
     "AgentRoleToml": {
       "additionalProperties": false,
       "properties": {
@@ -4611,6 +4649,14 @@
       "additionalProperties": false,
       "description": "Collection of settings that are specific to the TUI.",
       "properties": {
+        "agent_commands": {
+          "additionalProperties": {
+            "$ref": "#/definitions/AgentCommand"
+          },
+          "default": {},
+          "description": "Named local commands available from Agent Command Center.",
+          "type": "object"
+        },
         "agents_overview_grouping": {
           "allOf": [
             {
@@ -4687,6 +4733,7 @@
           "default": {
             "agents": {
               "archive": null,
+              "commands": null,
               "delete": null,
               "fork": null,
               "hide": null,
@@ -5043,6 +5090,14 @@
             }
           ],
           "description": "Archive the selected task and its child agents after confirmation."
+        },
+        "commands": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/KeybindingsSpec"
+            }
+          ],
+          "description": "Open the custom command menu for the selected task."
         },
         "delete": {
           "allOf": [
@@ -5659,6 +5714,7 @@
           ],
           "default": {
             "archive": null,
+            "commands": null,
             "delete": null,
             "fork": null,
             "hide": null,

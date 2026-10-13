@@ -37,6 +37,7 @@ impl AgentsOverviewView {
                 &self.agents_keymap.hide,
                 &self.agents_keymap.toggle_pin,
                 &self.agents_keymap.toggle_grouping,
+                &self.agents_keymap.commands,
             ].into_iter().any(|bindings| bindings.contains(binding)))
         })
     }
@@ -91,6 +92,7 @@ impl AgentsOverviewView {
             ("hide", &self.agents_keymap.hide, "Hide"),
             ("delete", &self.agents_keymap.delete, "Delete"),
             ("toggle_pin", &self.agents_keymap.toggle_pin, "Pin/unpin"),
+            ("commands", &self.agents_keymap.commands, "Commands"),
         ] {
             if (action != "new_worktree" || self.worktrees_enabled)
                 && (action != "toggle_pin" || self.can_toggle_selected_pin())

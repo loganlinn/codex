@@ -13,3 +13,4 @@ Archive | a | Agents archive Archive Archive the selected task and its child age
 Delete | backspace | Agents delete Delete Permanently delete the selected task and its child agents. backspace Default
 Hide | h | Agents hide Hide Hide the selected task until explicitly resumed. h Default
 Toggle Grouping | g | Agents toggle_grouping Toggle Grouping Cycle task grouping by project, status, or model. g Default
+Commands | c | Agents commands Commands Run a custom command for the selected task. c Default

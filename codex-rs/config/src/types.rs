@@ -77,6 +77,24 @@ pub enum AgentsOverviewGrouping {
     Model,
 }
 
+/// A local command offered for the selected task in Agent Command Center.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AgentCommand {
+    /// Optional description shown in the command menu.
+    pub description: Option<String>,
+    /// Executable to invoke directly. Supports `{{variable}}` templates.
+    pub interpreter: String,
+    /// Separate arguments, each supporting `{{variable}}` templates.
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Environment overrides. Values support `{{variable}}` templates.
+    #[serde(default)]
+    pub environment: BTreeMap<String, String>,
+    /// Working directory template. Defaults to the selected task's directory.
+    pub cwd: Option<String>,
+}
+
 impl AgentsOverviewGrouping {
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -964,6 +982,10 @@ pub struct Tui {
     /// Last selected grouping in Agent Command Center.
     #[serde(default)]
     pub agents_overview_grouping: AgentsOverviewGrouping,
+
+    /// Named local commands available from Agent Command Center.
+    #[serde(default)]
+    pub agent_commands: BTreeMap<String, AgentCommand>,
 
     /// Working directory to use when resuming or forking a session.
     /// When unset, prompt if the current and session directories differ.

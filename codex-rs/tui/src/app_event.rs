@@ -314,6 +314,22 @@ pub(crate) enum AppEvent {
     CloseMisalignmentReview,
     /// Open the live command center for recent and locally retained root sessions.
     OpenAgentsOverview,
+    /// Choose a local custom command using a snapshot of the selected task.
+    OpenAgentCommands {
+        thread: Option<Box<codex_app_server_protocol::Thread>>,
+    },
+    RunAgentCommand {
+        name: String,
+        thread: Box<codex_app_server_protocol::Thread>,
+    },
+    CancelAgentCommand {
+        request_id: Uuid,
+    },
+    AgentCommandFinished {
+        request_id: Uuid,
+        result: Result<String, String>,
+    },
+    ShowAgentCommandOutput,
     ShowMoreAgentsOverview,
     /// Create an empty thread from the command center.
     NewAgentsOverviewSession {

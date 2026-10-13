@@ -5,6 +5,9 @@ use crate::app::app_server_requests::BufferedServerRequest;
 #[path = "agent_center_tests.rs"]
 mod command_center;
 
+#[path = "agent_commands_tests.rs"]
+mod custom_commands;
+
 use super::super::agents_overview_view::AgentsOverviewGrouping;
 use super::*;
 use crate::app::tests::make_test_app_with_channels;

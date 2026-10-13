@@ -1282,6 +1282,7 @@ fn config_toml_deserializes_model_availability_nux() {
             pet_anchor: TuiPetAnchor::Composer,
             session_picker_view: None,
             agents_overview_grouping: Default::default(),
+            agent_commands: Default::default(),
             resume_cwd: None,
             keymap: TuiKeymap::default(),
             model_availability_nux: ModelAvailabilityNuxConfig {
@@ -4494,6 +4495,7 @@ fn tui_config_missing_notifications_field_defaults_to_enabled() {
             pet_anchor: TuiPetAnchor::Composer,
             session_picker_view: None,
             agents_overview_grouping: Default::default(),
+            agent_commands: Default::default(),
             resume_cwd: None,
             keymap: TuiKeymap::default(),
             model_availability_nux: ModelAvailabilityNuxConfig::default(),
