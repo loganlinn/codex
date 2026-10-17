@@ -63,6 +63,25 @@ struct ReasoningPreview {
 }
 
 impl App {
+    /// The selected thread's cached preview, without substituting a child task's message.
+    pub(super) fn agent_command_last_message(&self, thread_id: ThreadId) -> Option<&str> {
+        self.agents_overview
+            .activity
+            .get(&thread_id)
+            .filter(|_| {
+                self.thread_event_channels
+                    .get(&thread_id)
+                    .is_none_or(|channel| channel.attachment() == ThreadEventAttachment::Live)
+            })
+            .and_then(|activity| activity.last_message.as_deref())
+            .or_else(|| {
+                self.agents_overview
+                    .last_messages
+                    .get(&thread_id)
+                    .map(String::as_str)
+            })
+    }
+
     pub(super) fn track_agents_overview_activity(
         &mut self,
         thread_id: ThreadId,

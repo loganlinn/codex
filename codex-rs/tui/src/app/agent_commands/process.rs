@@ -1,8 +1,10 @@
 //! Expand each value once, then invoke the executable without implicit shell parsing.
 
-use codex_app_server_protocol::Thread;
+use super::context::CommandContext;
 use codex_config::types::AgentCommand;
+use codex_utils_absolute_path::AbsolutePathBuf;
 use std::collections::BTreeMap;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::io::AsyncRead;
@@ -10,6 +12,13 @@ use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
 const OUTPUT_LIMIT: usize = 64 * 1024;
+const CONTEXT_ENV: &str = "CODEX_AGENT_CONTEXT_FILE";
+
+pub(super) struct PreparedCommand {
+    command: Command,
+    // Own the file for the whole execution, including cancellation and spawn failures.
+    _context_file: tempfile::NamedTempFile,
+}
 
 /// Keep cancellation from leaving a shell's children running with captured pipes open.
 #[cfg(unix)]
@@ -24,29 +33,32 @@ impl Drop for KillGroupOnDrop {
     }
 }
 
-pub(super) fn prepare(config: &AgentCommand, thread: &Thread) -> anyhow::Result<Command> {
-    let context = BTreeMap::from([
-        ("thread_id", thread.id.clone()),
-        ("session_id", thread.session_id.clone()),
-        ("cwd", thread.cwd.display().to_string()),
-        (
-            "title",
-            thread
-                .name
-                .as_deref()
-                .unwrap_or(&thread.preview)
-                .to_string(),
-        ),
-        ("model", thread.model.clone().unwrap_or_default()),
-        (
-            "git_branch",
-            thread
-                .git_info
-                .as_ref()
-                .and_then(|git| git.branch.clone())
-                .unwrap_or_default(),
-        ),
-    ]);
+pub(super) fn prepare(
+    config: &AgentCommand,
+    session_cwd: &AbsolutePathBuf,
+    mut context: CommandContext,
+) -> anyhow::Result<PreparedCommand> {
+    anyhow::ensure!(
+        !config.environment.keys().any(|key| {
+            if cfg!(windows) {
+                key.eq_ignore_ascii_case(CONTEXT_ENV)
+            } else {
+                key == CONTEXT_ENV
+            }
+        }),
+        "{CONTEXT_ENV} is reserved for the session context file"
+    );
+    let mut context_file = tempfile::Builder::new()
+        .prefix("codex-agent-context-")
+        .suffix(".json")
+        .tempfile()?;
+    serde_json::to_writer(&mut context_file, &context.document)?;
+    context_file.flush()?;
+    context.variables.insert(
+        "context_file".to_string(),
+        context_file.path().display().to_string(),
+    );
+    let context = context.variables;
     let interpreter = expand(&config.interpreter, &context)?;
     anyhow::ensure!(
         !interpreter.trim().is_empty(),
@@ -72,23 +84,27 @@ pub(super) fn prepare(config: &AgentCommand, thread: &Thread) -> anyhow::Result<
         Some(cwd) => {
             let cwd = expand(cwd, &context)?;
             anyhow::ensure!(!cwd.is_empty(), "cwd must not be empty");
-            thread.cwd.as_path().join(PathBuf::from(cwd))
+            session_cwd.as_path().join(PathBuf::from(cwd))
         }
-        None => thread.cwd.to_path_buf(),
+        None => session_cwd.to_path_buf(),
     };
     let mut command = Command::from(codex_utils_process::background_command(interpreter));
     command
         .args(args)
         .envs(environment)
+        .env(CONTEXT_ENV, context_file.path())
         .current_dir(cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    Ok(command)
+    Ok(PreparedCommand {
+        command,
+        _context_file: context_file,
+    })
 }
 
-fn expand(template: &str, context: &BTreeMap<&str, String>) -> anyhow::Result<String> {
+fn expand(template: &str, context: &BTreeMap<String, String>) -> anyhow::Result<String> {
     let mut rest = template;
     let mut output = String::new();
     while let Some(start) = rest.find("{{") {
@@ -136,7 +152,8 @@ async fn capture(mut stream: impl AsyncRead + Unpin) -> std::io::Result<String> 
     Ok(output)
 }
 
-pub(super) async fn run(mut command: Command) -> anyhow::Result<String> {
+pub(super) async fn run(mut prepared: PreparedCommand) -> anyhow::Result<String> {
+    let command = &mut prepared.command;
     #[cfg(unix)]
     command.process_group(0);
     let mut child = command.spawn()?;
@@ -173,7 +190,7 @@ mod tests {
 
     #[test]
     fn templates_expand_once_and_reject_misspelled_variables() {
-        let context = BTreeMap::from([("title", "spaces; $HOME {{cwd}}".to_string())]);
+        let context = BTreeMap::from([("title".to_string(), "spaces; $HOME {{cwd}}".to_string())]);
         assert_eq!(
             expand("prefix {{ title }} suffix", &context).unwrap(),
             "prefix spaces; $HOME {{cwd}} suffix"
@@ -197,6 +214,40 @@ mod tests {
         assert!(output.ends_with("[output truncated at 64 KiB]\n"));
     }
 
+    #[tokio::test]
+    async fn spawn_failure_removes_context_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let config: AgentCommand = toml::from_str("interpreter = 'missing-command'").unwrap();
+        let cwd = AbsolutePathBuf::from_absolute_path(directory.path()).unwrap();
+        let context = CommandContext {
+            document: serde_json::json!({"schema_version": 1}),
+            variables: BTreeMap::new(),
+        };
+        let mut prepared = prepare(&config, &cwd, context).unwrap();
+        let context_path = prepared._context_file.path().to_path_buf();
+        // A fully qualified missing executable cannot accidentally resolve through PATH.
+        prepared.command = Command::new(directory.path().join("missing-executable"));
+        assert!(context_path.exists());
+        assert!(run(prepared).await.is_err());
+        assert!(!context_path.exists());
+    }
+
+    #[test]
+    fn context_environment_cannot_be_overridden() {
+        let directory = tempfile::tempdir().unwrap();
+        let config: AgentCommand = toml::from_str(
+            "interpreter = 'unused'\n[environment]\nCODEX_AGENT_CONTEXT_FILE = 'other.json'",
+        )
+        .unwrap();
+        let context = CommandContext {
+            document: serde_json::json!({}),
+            variables: BTreeMap::new(),
+        };
+        let cwd = AbsolutePathBuf::from_absolute_path(directory.path()).unwrap();
+        let error = prepare(&config, &cwd, context).err().unwrap();
+        assert!(error.to_string().contains("reserved"));
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn cancel_kills_the_interpreter_and_its_child() {
@@ -210,7 +261,12 @@ mod tests {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
-        let task = tokio::spawn(run(command));
+        let context_file = tempfile::NamedTempFile::new().unwrap();
+        let context_path = context_file.path().to_path_buf();
+        let task = tokio::spawn(run(PreparedCommand {
+            command,
+            _context_file: context_file,
+        }));
         let child_pid = tokio::time::timeout(std::time::Duration::from_secs(5), async {
             loop {
                 if let Ok(pid) = tokio::fs::read_to_string(&pid_file).await
@@ -225,6 +281,10 @@ mod tests {
         .unwrap();
         task.abort();
         assert!(task.await.unwrap_err().is_cancelled());
+        assert!(
+            !context_path.exists(),
+            "cancellation left its session context file behind"
+        );
         tokio::time::timeout(std::time::Duration::from_secs(5), async {
             // Signal zero only checks whether this known test child still exists.
             while unsafe { libc::kill(child_pid, 0) } == 0 {

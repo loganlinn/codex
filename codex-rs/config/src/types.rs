@@ -93,6 +93,11 @@ pub struct AgentCommand {
     pub environment: BTreeMap<String, String>,
     /// Working directory template. Defaults to the selected task's directory.
     pub cwd: Option<String>,
+    /// Include user and assistant text from this many recent turns in the context file.
+    /// Defaults to 0 (no history fetch); at most 100 turns may be requested.
+    #[serde(default)]
+    #[schemars(range(max = 100))]
+    pub message_turns: u32,
 }
 
 impl AgentsOverviewGrouping {

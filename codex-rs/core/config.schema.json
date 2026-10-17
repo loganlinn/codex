@@ -37,6 +37,14 @@
         "interpreter": {
           "description": "Executable to invoke directly. Supports `{{variable}}` templates.",
           "type": "string"
+        },
+        "message_turns": {
+          "default": 0,
+          "description": "Include user and assistant text from this many recent turns in the context file. Defaults to 0 (no history fetch); at most 100 turns may be requested.",
+          "format": "uint32",
+          "maximum": 100.0,
+          "minimum": 0.0,
+          "type": "integer"
         }
       },
       "required": [

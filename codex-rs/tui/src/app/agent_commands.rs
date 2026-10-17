@@ -1,6 +1,7 @@
 //! Explicit, client-local commands use a snapshot of the selected dashboard task.
 //! Execution is independent of agent turns; results never enter a model conversation.
 
+mod context;
 mod process;
 
 use super::*;
@@ -87,7 +88,12 @@ impl App {
         });
     }
 
-    pub(super) fn run_agent_command(&mut self, name: String, thread: Thread) {
+    pub(super) fn run_agent_command(
+        &mut self,
+        app_server: &AppServerSession,
+        name: String,
+        thread: Thread,
+    ) {
         if self.agents_overview.commands.running.is_some() {
             self.add_agents_overview_error(
                 "A custom command is already running. Use the command menu to cancel it."
@@ -101,19 +107,26 @@ impl App {
             ));
             return;
         };
-        let command = match process::prepare(command, &thread) {
-            Ok(command) => command,
-            Err(error) => {
-                self.add_agents_overview_error(format!("Cannot run {name}: {error}"));
-                return;
-            }
-        };
+        let thread_id = ThreadId::from_string(&thread.id).ok();
+        let last_message_preview = thread_id.and_then(|id| self.agent_command_last_message(id));
+        let token_usage = thread_id
+            .and_then(|id| self.agents_overview.usage.get(&id))
+            .and_then(|usage| usage.tokens.as_ref());
+        let mut context = context::CommandContext::new(&thread, last_message_preview, token_usage);
+        let command = command.clone();
+        let request_handle = app_server.request_handle();
         let request_id = Uuid::new_v4();
         let tx = self.app_event_tx.clone();
         let task = tokio::spawn(async move {
-            let result = process::run(command)
-                .await
-                .map_err(|error| error.to_string());
+            let result = async {
+                context
+                    .load_messages(&request_handle, &thread.id, command.message_turns)
+                    .await?;
+                let command = process::prepare(&command, &thread.cwd, context)?;
+                process::run(command).await
+            }
+            .await
+            .map_err(|error: anyhow::Error| error.to_string());
             tx.send(AppEvent::AgentCommandFinished { request_id, result });
         });
         self.set_agent_command_notice(Some(format!("Running {name}…")));

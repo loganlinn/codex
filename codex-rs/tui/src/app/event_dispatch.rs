@@ -2797,7 +2797,7 @@ impl App {
             }
             AppEvent::OpenAgentsOverview => self.open_agents_overview(app_server),
             AppEvent::OpenAgentCommands { thread } => self.open_agent_commands(thread.map(|thread| *thread)),
-            AppEvent::RunAgentCommand { name, thread } => self.run_agent_command(name, *thread),
+            AppEvent::RunAgentCommand { name, thread } => self.run_agent_command(app_server, name, *thread),
             AppEvent::CancelAgentCommand { request_id } => self.cancel_agent_command(request_id),
             AppEvent::AgentCommandFinished { request_id, result } => {
                 self.finish_agent_command(tui, request_id, result);
